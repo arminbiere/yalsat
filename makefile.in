@@ -25,4 +25,4 @@ cflags.h: makefile
 	echo '#define YALS_CC "$(shell $(CC) --version|head -1)"' >>$@
 	echo '#define YALS_CFLAGS "$(CFLAGS)"' >>$@
 clean:
-	rm -f yalsat *.a *.o makefile config.h cflags.h
+	rm -f yalsat palsat *.a *.o makefile config.h cflags.h

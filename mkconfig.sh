@@ -15,6 +15,7 @@ EOF
 
 echo "#define YALS_OS \"`uname -srmn`\""
 echo "#define YALS_COMPILED \"`date`\""
-echo "#define YALS_RELEASED \"Fr 1. Mär 05:17:48 CET 2019\""
-echo "#define YALS_VERSION \"03v\""
-echo "#define YALS_ID \"b1316746d40f72f147cde3f4ec54fadbe0730427\""
+#CUTHERE
+echo "#define YALS_RELEASED \"`date`\""
+echo "#define YALS_VERSION \"`cat VERSION`\""
+echo "#define YALS_ID \"`./getgitid.sh`\""

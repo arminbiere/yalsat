@@ -1,7 +1,3 @@
-/*-------------------------------------------------------------------------*/
-/* Copyright 2013-2019 Armin Biere Johannes Kepler University Linz Austria */
-/*-------------------------------------------------------------------------*/
-
 #include "yals.h"
 
 /*------------------------------------------------------------------------*/
@@ -88,18 +84,29 @@ do { \
 
 /*------------------------------------------------------------------------*/
 
+static void error (const char * fmt, ...) {
+  va_list ap;
+  fflush (stdout);
+  if (isatty (2)) fputs (yals_bold_color_code, stderr);
+  fputs ("yalsat: ", stderr);
+  if (isatty (2)) fputs (yals_bright_red_color_code, stderr);
+  va_start (ap, fmt);
+  vfprintf (stderr, fmt, ap);
+  va_end (ap);
+  if (isatty (2)) fputs (yals_normal_color_code, stderr);
+}
+
 static void die (const char * fmt, ...) {
   va_list ap;
 #ifdef PALSAT
   pthread_mutex_lock (&lock.msg);
 #endif
-  fflush (stdout);
-  printf ("*** error: ");
+  error ("error: ");
   va_start (ap, fmt);
-  vprintf (fmt, ap);
+  vfprintf (stderr, fmt, ap);
   va_end (ap);
-  fputc ('\n', stdout);
-  fflush (stdout);
+  fputc ('\n', stderr);
+  fflush (stderr);
 #ifdef PALSAT
   pthread_mutex_unlock (&lock.msg);
 #endif
@@ -111,13 +118,12 @@ static void perr (const char * fmt, ...) {
 #ifdef PALSAT
   pthread_mutex_lock (&lock.msg);
 #endif
-  fflush (stdout);
-  printf ("*** parse error: ");
+  error ("parse error: ");
   va_start (ap, fmt);
-  vprintf (fmt, ap);
+  vfprintf (stderr, fmt, ap);
   va_end (ap);
-  fputc ('\n', stdout);
-  fflush (stdout);
+  fputc ('\n', stderr);
+  fflush (stderr);
 #ifdef PALSAT
   pthread_mutex_unlock (&lock.msg);
 #endif
@@ -248,7 +254,7 @@ static void printvaline () {
 }
 
 static void printval (int lit) {
-  char buffer[12];
+  char buffer[32];
   int len;
   sprintf (buffer, " %d", lit);
   len = strlen (buffer);
@@ -299,22 +305,24 @@ static void resetsighandlers (void) {
   (void) signal (SIGTERM, sig_term_handler);
 }
 
-static void caughtsigmsg (int sig) {
-  if (!verbose) return;
-  printf ("c\nc [yalsat] CAUGHT SIGNAL %d\nc\n", sig);
-  fflush (stdout);
-}
-
-static int catchedsig;
+static volatile int caughtsig;
 
 static void catchsig (int sig) {
-  if (!catchedsig) {
-    fputs ("c s UNKNOWN\n", stdout);
+  if (!caughtsig) {
+    fputs ("c\n", stdout);
+    if (verbose) {
+      error ("caught signal %d", sig);
+      fputc ('\n', stderr);
+      fflush (stderr);
+    }
+    fputs ("c UNKNOWN\n", stdout);
     fflush (stdout);
-    catchedsig = 1;
-    caughtsigmsg (sig);
+    caughtsig = 1;
     stats ();
-    caughtsigmsg (sig);
+    if (verbose) {
+      error ("raising signal %d", sig);
+      fputc ('\n', stderr);
+    }
   }
   resetsighandlers ();
   raise (sig);
@@ -562,30 +570,36 @@ static void usage () {
     "usage: yalsat [<option> ...] [<file> [<seed> [<flips> [<mems>]]]]\n");
 #endif
   printf ("\n");
-  printf ("main options: \n");
+  printf ("Main options are the following: \n");
   printf ("\n");
-  printf ("-h          print this command line option summary\n");
-  printf ("--version   version number and exit\n");
+  printf ("  -h         print this command line option summary\n");
+  printf ("  --version  version number and exit\n");
   printf ("\n");
 #ifdef PALSAT
-  printf ("-t <num>  number of worker threads (system default %d)\n",
+  printf ("  -t <num>   number of worker threads (system default %d)\n",
     getsystemcores (0));
   printf ("\n");
 #endif
-  printf ("-v     increase verbose level (see '--verbose')\n");
-  printf ("-n     do not print witness (see '--witness')\n");
+  printf ("  -v         increase verbose level (see '--verbose')\n");
+  printf ("  -n         do not print witness (see '--witness')\n");
 #ifndef NDEBUG
-  printf ("-l     enable internal logging (see '--logging')\n");
-  printf ("-c     enable internal checking (see '--checking')\n");
+  printf ("  -l         enable internal logging (see '--logging')\n");
+  printf ("  -c         enable internal checking (see '--checking')\n");
 #endif
   printf ("\n");
-  printf ("--bfs  BFS (same as '--pick=1')\n");
-  printf ("--dfs  DFS (same as '--pick=2')\n");
-  printf ("--rfs  relaxed BFS (same as '--pick=3')\n");
-  printf ("--pfs  pseudo BFS (same as '--pick=-1')\n");
-  printf ("--ufs  uniform random search (same as '--pick=0')\n");
+  printf ("  --bfs      BFS (same as '--pick=1')\n");
+  printf ("  --dfs      DFS (same as '--pick=2')\n");
+  printf ("  --rfs      relaxed BFS (same as '--pick=3')\n");
+  printf ("  --pfs      pseudo BFS (same as '--pick=-1')\n");
+  printf ("  --ufs      uniform random search (same as '--pick=0')\n");
   printf ("\n");
-  printf ("other options (also available through API): \n");
+  printf ("The following options allow to simulate other solvers:\n");
+  printf ("\n");
+  printf ("  --walksat  simulate classical walksat algorithm\n");
+  printf ("             "
+          "(eager=1,fixed=1,pick=0,restart=0,uni=1,walk=1,weight=1)\n");
+  printf ("\n");
+  printf ("Other options (also available through API): \n");
   printf ("\n");
   {
     Yals * y = yals_new_with_mem_mgr (0, mymalloc, myrealloc, myfree);
@@ -676,7 +690,15 @@ int main (int argc, char** argv) {
     else if (!strcmp (argv[i], "--rfs")) setopt ("pick", 3);
     else if (!strcmp (argv[i], "--pfs")) setopt ("pick", -1);
     else if (!strcmp (argv[i], "--ufs")) setopt ("pick", 0);
-    else if (isnum (argv[i])) {
+    else if (!strcmp (argv[i], "--walksat")) {
+      setopt ("eager", 1);
+      setopt ("fixed", 1);
+      setopt ("pick", 0);
+      setopt ("restart", 0);
+      setopt ("uni", 1);
+      setopt ("walk", 1);
+      setopt ("weight", 1);
+    } else if (isnum (argv[i])) {
 #ifdef PALSAT
       if (seedset) die ("seed already set (try '-h')");
 #else

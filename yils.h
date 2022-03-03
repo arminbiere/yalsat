@@ -1,7 +1,3 @@
-/*-------------------------------------------------------------------------*/
-/* Copyright 2013-2019 Armin Biere Johannes Kepler University Linz Austria */
-/*-------------------------------------------------------------------------*/
-
 #ifndef YILS_H_INCLUDED
 #define YILS_H_INCLUDED
 
@@ -51,4 +47,10 @@ void * yals_realloc (Yals *, void*, size_t, size_t);
 
 void yals_srand (Yals *, unsigned long long);
   
+/*------------------------------------------------------------------------*/
+
+extern const char * yals_bright_red_color_code;
+extern const char * yals_normal_color_code;
+extern const char * yals_bold_color_code;
+
 #endif

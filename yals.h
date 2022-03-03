@@ -1,7 +1,3 @@
-/*-------------------------------------------------------------------------*/
-/* Copyright 2013-2019 Armin Biere Johannes Kepler University Linz Austria */
-/*-------------------------------------------------------------------------*/
-
 #ifndef LIBYALS_H_INCLUDED
 #define LIBYALS_H_INCLUDED
 
@@ -70,7 +66,5 @@ void yals_setime (Yals *, double (*time)(void));
 
 void yals_setmsglock (Yals *,
        void (*lock)(void*), void (*unlock)(void*), void*);
-
-/*------------------------------------------------------------------------*/
 
 #endif
