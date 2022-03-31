@@ -35,11 +35,10 @@ static int done, winner, threads = THREADS, threadset;
 struct { pthread_mutex_t done, msg, mem; } lock;
 #else
 static Yals * yals;
-static int flipsset, memsset;
-static long long flips = -1, mems = -1;
 #endif
+static int seedset, flipsset, memsset, closefile, verbose;
 static unsigned long long seed;
-static int seedset, closefile, verbose;
+static long long flips = -1, mems = -1;
 static const char * filename;
 static FILE * file;
 static int V, C;
@@ -442,7 +441,6 @@ static int palsat () {
     else msg ("joined thread %d", i);
   msg ("");
   return done;
-
 }
 
 #endif
@@ -562,13 +560,14 @@ static int getsystemcores (int explain) {
 #endif
 
 static void usage () {
+  printf ("usage: ");
 #ifdef PALSAT
-  printf (
-    "usage: palsat [<option> ...] [<file> [<seed>]]\n");
+  printf ("palsat");
 #else
-  printf (
-    "usage: yalsat [<option> ...] [<file> [<seed> [<flips> [<mems>]]]]\n");
+  printf ("yalsat");
 #endif
+  printf (
+    " [<option> ...] [<file> [<seed>]]\n");
   printf ("\n");
   printf ("Main options are the following: \n");
   printf ("\n");
@@ -699,13 +698,9 @@ int main (int argc, char** argv) {
       setopt ("walk", 1);
       setopt ("weight", 1);
     } else if (isnum (argv[i])) {
-#ifdef PALSAT
-      if (seedset) die ("seed already set (try '-h')");
-#else
       if (memsset) die ("more than three numbers (try '-h')");
       else if (flipsset) mems = atoll (argv[i]), memsset = 1;
       else if (seedset) flips = atoll (argv[i]), flipsset = 1;
-#endif
       else seed = atoull (argv[i]), seedset = 1;
     } else if (!strcmp (argv[i], "-")) {
       if (filename)
@@ -732,12 +727,11 @@ int main (int argc, char** argv) {
   verbose = yals_getopt (YALS, "verbose");
   if (verbose) {
 #ifdef PALSAT
-    Yals * y = worker[0].yals;
-    yals_setprefix (y, "c ");
-    yals_showopts (y);
-    yals_setprefix (y, "c 00 ");
+    yals_setprefix (YALS, "c ");
+    yals_showopts (YALS);
+    yals_setprefix (YALS, "c 00 ");
 #else
-    yals_showopts (yals);
+    yals_showopts (YALS);
 #endif
   }
 #ifndef NDEBUG
@@ -745,12 +739,12 @@ int main (int argc, char** argv) {
   checking = yals_getopt (YALS, "checking");
   if (logging && verbose < 2) setopt ("verbose", verbose = 2);
 #endif
-  if (seedset) {
-    msg ("using specified seed %llu", seed);
-    yals_srand (YALS, seed);
-  } else msg ("no seed specified (using default 0)");
 #ifdef PALSAT
   {
+    if (seedset) {
+      msg ("worker 0 uses specified seed %llu", seed);
+      yals_srand (YALS, seed);
+    } else msg ("worker 0 uses default seed 0");
     unsigned long long newseed = seed;
     for (i = 1; i < threads; i++) {
       newseed *= 1103515245;
@@ -760,11 +754,15 @@ int main (int argc, char** argv) {
     }
   }
 #else
+  if (seedset) {
+    msg ("using specified seed %llu", seed);
+    yals_srand (YALS, seed);
+  } else msg ("no seed specified (using default 0)");
+#endif
   if (flipsset) msg ("using specified flips limit %lld", flips);
   else msg ("no flips limit set (by default)");
   if (memsset) msg ("using specified mems limit %lld", mems);
   else msg ("no mems limit set (by default)");
-#endif
   if (!file) file = stdin, filename = "<stdin>";
   msg ("parsing '%s'", filename);
 HEADER:
@@ -827,6 +825,10 @@ DONE:
   msg ("finished parsing after %.2f seconds",  getime ());
   msg ("allocated %.1f MB after parsing", mem.allocated/(double)(1<<20));
 #ifdef PALSAT
+  for (i = 0; i < threads; i++) {
+    if (flipsset) yals_setflipslimit (worker[i].yals, flips);
+    if (memsset) yals_setmemslimit (worker[i].yals, mems);
+  }
   res = palsat ();
 #else
   if (flipsset) yals_setflipslimit (yals, flips);
