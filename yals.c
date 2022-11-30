@@ -405,7 +405,7 @@ struct Yals {
   struct { int usequeue; Queue queue; STACK(int) stack; } unsat;
   int nvars, * refs; int64_t * flips;
   STACK(signed char) mark;
-  int trivial, mt, uniform, pick;
+  int trivial, mt, uniform, pick, target;
   Word * vals, * best, * tmp, * clear, * set; int nvarwords;
   STACK(int) cdb, trail, phases, clause, mins;
   int satcntbytes; union { U1 * satcnt1; U2 * satcnt2; U4 * satcnt4; };
@@ -2589,6 +2589,13 @@ void yals_setmemslimit (Yals * yals, long long mems) {
 #endif
 }
 
+void yals_setarget (Yals * yals, int target) {
+  if (target <= 0)
+    return;
+  yals->target = target;
+  yals_msg (yals, 1, "targetting %d unsatisfied clauses", target);
+}
+
 /*------------------------------------------------------------------------*/
 
 void yals_setime (Yals * yals, double (*time)(void)) {
@@ -2871,7 +2878,8 @@ static void yals_restart_inner (Yals * yals) {
 
 static int yals_done (Yals * yals) {
   assert (!yals->mt);
-  if (!yals_nunsat (yals)) return 1;
+
+  if (yals_nunsat (yals) <= yals->target) return 1;
   if (yals->limits.flips >= 0 &&
       yals->limits.flips <= yals->stats.flips) {
     yals_msg (yals, 1,

@@ -36,7 +36,7 @@ struct { pthread_mutex_t done, msg, mem; } lock;
 #else
 static Yals * yals;
 #endif
-static int seedset, flipsset, memsset, closefile, verbose;
+static int seedset, flipsset, memsset, closefile, target, verbose;
 static unsigned long long seed;
 static long long flips = -1, mems = -1;
 static const char * filename;
@@ -579,6 +579,7 @@ static void usage () {
     getsystemcores (0));
   printf ("\n");
 #endif
+  printf ("  -T <k>     terminate if 'k' or less clauses remain unsatisfied\n");
   printf ("  -v         increase verbose level (see '--verbose')\n");
   printf ("  -n         do not print witness (see '--witness')\n");
 #ifndef NDEBUG
@@ -697,6 +698,11 @@ int main (int argc, char** argv) {
       setopt ("uni", 1);
       setopt ("walk", 1);
       setopt ("weight", 1);
+    } else if (!strcmp (argv[i], "-T")) {
+      if (++i == argc)
+	die ("argument to '-T' missing");
+      if ((target = atoi (argv[i])) <= 0)
+	die ("invalid argument in '-T %s'", argv[i]);
     } else if (isnum (argv[i])) {
       if (memsset) die ("more than three numbers (try '-h')");
       else if (flipsset) mems = atoll (argv[i]), memsset = 1;
@@ -739,6 +745,10 @@ int main (int argc, char** argv) {
   checking = yals_getopt (YALS, "checking");
   if (logging && verbose < 2) setopt ("verbose", verbose = 2);
 #endif
+  if (target > 0) {
+    msg ("will stop if at most %d clauses remain unsatisfied", target);
+    yals_setarget (YALS, target);
+  }
 #ifdef PALSAT
   {
     if (seedset) {
@@ -751,6 +761,8 @@ int main (int argc, char** argv) {
       newseed += 12345;
       yals_srand (worker[i].yals, newseed);
       msg ("worker %d uses seed %llu", i, newseed);
+      if (target > 0)
+	yals_setarget (YALS, target);
     }
   }
 #else
