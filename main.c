@@ -31,7 +31,7 @@
 #define THREADS 12
 typedef struct Worker { Yals * yals; pthread_t thread; } Worker;
 static Worker * worker;
-static int done, winner, threads = THREADS, threadset;
+static int done = -1, winner, threads = THREADS, threadset;
 struct { pthread_mutex_t done, msg, mem; } lock;
 #else
 static Yals * yals;
@@ -403,7 +403,7 @@ static void unlockmsg (void* dummy) {
 static int setdone (int w, int r) {
   int res;
   LOCK (done);
-  if (r) { winner = w; done = r; }
+  if (done < 0 || r > 0) { winner = w; done = r; }
   res = winner;
   UNLOCK (done);
   return res;
@@ -413,7 +413,7 @@ static int terminate (void * dummy) {
   int res;
   (void) dummy;
   LOCK (done);
-  res = done;
+  res = (done >= 0);
   UNLOCK (done);
   return res;
 }
@@ -423,7 +423,8 @@ static void * run (void * p) {
   int res, widx = w - worker;
   assert (0 <= widx), assert (widx < threads);
   res = yals_sat (w->yals);
-  if (res && setdone (widx, res) == widx)
+  assert (res >= 0);
+  if (setdone (widx, res) == widx)
     msg ("worker %d wins with result %d", widx, res);
   else msg ("worker %d returns with %d", widx, res);
   return p;

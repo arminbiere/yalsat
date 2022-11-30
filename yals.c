@@ -231,7 +231,7 @@ enum ClausePicking {
   OPT (restartouter,0,0,1,"enable restart outer"); \
   OPT (restartouterfactor,100,1,INT_MAX,"outer restart interval factor"); \
   OPT (setfpu,1,0,1,"set FPU to use double precision on Linux"); \
-  OPT (target,1,0,INT_MAX,"unsatisfied clause target"); \
+  OPT (target,0,0,INT_MAX,"unsatisfied clause target"); \
   OPT (termint,1000,0,INT_MAX,"termination call back check interval"); \
   OPT (toggleuniform,0,0,1,"toggle uniform strategy"); \
   OPT (unfairfreq,50,0,100,"unfair picking first frequency (percent)"); \
