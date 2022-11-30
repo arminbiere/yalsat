@@ -32,7 +32,6 @@ void yals_setout (Yals *, FILE *);
 void yals_setphase (Yals *, int lit);
 void yals_setflipslimit (Yals *, long long);
 void yals_setmemslimit (Yals *, long long);
-void yals_setarget (Yals *, int);
 
 int yals_getopt (Yals *, const char * name);
 void yals_usage (Yals *);

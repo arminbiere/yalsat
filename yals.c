@@ -231,6 +231,7 @@ enum ClausePicking {
   OPT (restartouter,0,0,1,"enable restart outer"); \
   OPT (restartouterfactor,100,1,INT_MAX,"outer restart interval factor"); \
   OPT (setfpu,1,0,1,"set FPU to use double precision on Linux"); \
+  OPT (target,1,0,INT_MAX,"unsatisfied clause target"); \
   OPT (termint,1000,0,INT_MAX,"termination call back check interval"); \
   OPT (toggleuniform,0,0,1,"toggle uniform strategy"); \
   OPT (unfairfreq,50,0,100,"unfair picking first frequency (percent)"); \
@@ -405,7 +406,7 @@ struct Yals {
   struct { int usequeue; Queue queue; STACK(int) stack; } unsat;
   int nvars, * refs; int64_t * flips;
   STACK(signed char) mark;
-  int trivial, mt, uniform, pick, target;
+  int trivial, mt, uniform, pick;
   Word * vals, * best, * tmp, * clear, * set; int nvarwords;
   STACK(int) cdb, trail, phases, clause, mins;
   int satcntbytes; union { U1 * satcnt1; U2 * satcnt2; U4 * satcnt4; };
@@ -2589,13 +2590,6 @@ void yals_setmemslimit (Yals * yals, long long mems) {
 #endif
 }
 
-void yals_setarget (Yals * yals, int target) {
-  if (target <= 0)
-    return;
-  yals->target = target;
-  yals_msg (yals, 1, "targetting %d unsatisfied clauses", target);
-}
-
 /*------------------------------------------------------------------------*/
 
 void yals_setime (Yals * yals, double (*time)(void)) {
@@ -2879,7 +2873,7 @@ static void yals_restart_inner (Yals * yals) {
 static int yals_done (Yals * yals) {
   assert (!yals->mt);
 
-  if (yals_nunsat (yals) <= yals->target) return 1;
+  if (yals_nunsat (yals) <= yals->opts.target.val) return 1;
   if (yals->limits.flips >= 0 &&
       yals->limits.flips <= yals->stats.flips) {
     yals_msg (yals, 1,
